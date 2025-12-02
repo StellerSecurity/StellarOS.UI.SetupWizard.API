@@ -1,59 +1,155 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# StellarOS Setup Wizard API
+Secure user onboarding for StellarOS devices.
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+The StellarOS Setup Wizard API is the backend service responsible for handling account creation, authentication, and password recovery during the initial setup of StellarOS.  
+It integrates directly with the **Stellar User Service** (`stellarsecurity-user-laravel`) and provides a clean interface for the Setup Wizard UI.
 
-## About Laravel
+All communication is fully API-based and designed for privacy-first devices running StellarOS.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 🚀 Features
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **User Login** (email + password)
+- **User Account Creation**
+- **Password Reset: Request + Verification**
+- **Secure token-based authentication**
+- Built on **Laravel 12**
+- Uses official **StellarSecurity User API package**
+- Fully ready for deployment on **Azure App Service**
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## 📦 Installation
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Clone the repository and install dependencies:
 
-## Laravel Sponsors
+```bash
+composer install
+cp .env.example .env
+php artisan key:generate
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Install the Stellar User API package:
 
-### Premium Partners
+```bash
+composer require stellar-security/stellarsecurity-user-laravel
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+---
 
-## Contributing
+## ⚙️ Configuration
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Set the following environment variables:
 
-## Code of Conduct
+```
+STELLAR_USER_API_BASE_URL=https://api.stellarsecurity.com
+STELLAR_USER_API_KEY=your-key-here
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+APP_URL=https://your-wizard-api-url.com
+APP_ENV=production
+```
 
-## Security Vulnerabilities
+---
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+## 🔐 Trust Proxies (Azure Required)
 
-## License
+For Laravel 12 on Azure App Service, edit `bootstrap/app.php`:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```php
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->trustProxies(
+        at: '*',
+        headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_ALL,
+    );
+})
+```
+
+---
+
+## 📡 API Endpoints
+
+### **POST /api/v1/auth**
+Authenticate a user.
+
+Request:
+```json
+{
+  "username": "email@example.com",
+  "password": "strongpassword"
+}
+```
+
+---
+
+### **POST /api/v1/create**
+Create a new user account.
+
+Request:
+```json
+{
+  "username": "email@example.com",
+  "password": "mypassword"
+}
+```
+
+---
+
+### **POST /api/v1/sendresetpasswordlink**
+Send a 6-digit password reset code to the user's email.
+
+Request:
+```json
+{ "email": "email@example.com" }
+```
+
+---
+
+### **POST /api/v1/resetpasswordupdate**
+Verify the code and update the user’s password.
+
+Request:
+```json
+{
+  "email": "email@example.com",
+  "confirmation_code": "123456",
+  "new_password": "newPassword123"
+}
+```
+
+---
+
+## 🧩 Routes
+
+Add this to `routes/api.php`:
+
+```php
+use App\Http\Controllers\V1\LoginController;
+
+Route::prefix('v1')->group(function () {
+    Route::post('auth', [LoginController::class, 'auth']);
+    Route::post('create', [LoginController::class, 'create']);
+    Route::post('sendresetpasswordlink', [LoginController::class, 'sendresetpasswordlink']);
+    Route::post('resetpasswordupdate', [LoginController::class, 'resetpasswordupdate']);
+});
+```
+
+---
+
+## 🏛 Architecture
+
+The API uses the following flow:
+
+```
+StellarOS Device → Setup Wizard UI → StellarOS Wizard API → 
+Stellar User Service → Token Issued → Device Setup Completed
+```
+
+---
+
+## 🛡 Security
+
+- All tokens are issued through Stellar’s official User Service
+- No passwords are ever stored locally
+- Fully stateless authentication
+- Designed for secure, privacy-first operating systems  
