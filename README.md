@@ -14,7 +14,6 @@ All communication is fully API-based and designed for privacy-first devices runn
 - **User Account Creation**
 - **Password Reset: Request + Verification**
 - **Secure token-based authentication**
-- Built on **Laravel 12**
 - Uses official **StellarSecurity User API package**
 - Fully ready for deployment on **Azure App Service**
 
