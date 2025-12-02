@@ -27,6 +27,10 @@ return Application::configure(basePath: dirname(__DIR__))
             | Request::HEADER_X_FORWARDED_PROTO
         );
 
+        $middleware->alias([
+            'wizard-client' => \App\Http\Middleware\EnsureWizardClient::class,
+        ]);
+
         // If you later want to add global / route middleware:
         // $middleware->alias([
         //     // 'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,

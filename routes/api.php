@@ -24,10 +24,10 @@ Route::prefix('v1')->group(function () {
         ->group(function () {
 
             // POST /api/v1/logincontroller/auth
-            Route::post('/auth', [LoginController::class, 'auth']);
+            Route::post('/auth', [LoginController::class, 'auth'])->middleware(['wizard-client']);
 
             // POST /api/v1/logincontroller/create
-            Route::post('/create', [LoginController::class, 'create']);
+            Route::post('/create', [LoginController::class, 'create'])->middleware(['wizard-client']);
 
             // POST /api/v1/logincontroller/sendresetpasswordlink
             Route::post('/sendresetpasswordlink', [LoginController::class, 'sendresetpasswordlink']);
