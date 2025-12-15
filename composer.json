@@ -14,7 +14,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
         "stellarsecurity/application-insights-laravel": "^1.0",
-        "stellarsecurity/user-laravel": "v1.0.2.4"
+        "stellarsecurity/user-laravel": "v1.0.2.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

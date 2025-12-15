@@ -34,5 +34,8 @@ Route::prefix('v1')->group(function () {
 
             // POST /api/v1/logincontroller/resetpasswordupdate
             Route::post('/resetpasswordupdate', [LoginController::class, 'resetpasswordupdate']);
+
+            // POST /api/v1/logincontroller/verifypasswordcode
+            Route::post('/verifypasswordcode', [LoginController::class, 'verifypasswordcode']);
         });
 });

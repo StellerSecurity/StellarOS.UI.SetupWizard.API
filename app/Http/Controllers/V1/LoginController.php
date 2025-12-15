@@ -72,6 +72,26 @@ class LoginController extends Controller
         return response()->json(['response_code' => 200, 'response_message' => 'OK. Reset password link sent to your email.']);
     }
 
+
+    public function verifypasswordcode(Request $request): JsonResponse
+    {
+        $email = $request->input('email');
+        $confirmation_code = $request->input('confirmation_code');
+
+        if($email === null) {
+            return response()->json(['response_code' => 400, 'response_message' => 'No email was provided']);
+        }
+
+        if($confirmation_code === null) {
+            return response()->json(['response_code' => 400, 'response_message' => 'No confirmation code was provided']);
+        }
+
+        $verifyandupdate = $this->userService->checkresetpasswordconfirmationcode($email, $confirmation_code)->object();
+
+        return response()->json($verifyandupdate);
+
+    }
+
     public function resetpasswordupdate(Request $request): JsonResponse
     {
         $email = $request->input('email');
