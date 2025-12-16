@@ -86,30 +86,12 @@ class LoginController extends Controller
             return response()->json(['response_code' => 400, 'response_message' => 'No confirmation code was provided']);
         }
 
-        try {
-            $resp = $this->userService
-                ->checkresetpasswordconfirmationcode($email, $confirmation_code);
+        $resp = $this->userService
+            ->checkresetpasswordconfirmationcode($email, $confirmation_code);
 
-            if (method_exists($resp, 'status') && $resp->status() !== 200) {
-                return response()->json([
-                    'response_code'    => $resp->status(),
-                    'response_message' => 'Invalid or expired confirmation code.',
-                ], $resp->status());
-            }
+        $verify = $resp->object();
 
-            $verifyandupdate = $resp->object();
-
-        } catch (\Throwable $e) {
-
-            $verifyandupdate = $resp->object();
-
-            return response()->json([
-                'response_code'    =>  $verifyandupdate->response_code,
-                'response_message' => $verifyandupdate->response_message,
-            ],  $verifyandupdate->response_code);
-        }
-
-        return response()->json($verifyandupdate);
+        return response()->json($verify);
 
     }
 
