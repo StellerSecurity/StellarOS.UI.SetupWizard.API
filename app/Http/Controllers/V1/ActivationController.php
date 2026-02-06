@@ -102,7 +102,7 @@ class ActivationController extends Controller
 
             return response()->json([
                 'provisional_user_id' => $provisionalUserId,
-                'entitlements' => [
+                'subscriptions' => [
                     [
                         'product' => 'antivirus',
                         'subscription_id' => $antivirusSubscription->id
