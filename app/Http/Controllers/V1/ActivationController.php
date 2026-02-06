@@ -114,8 +114,8 @@ class ActivationController extends Controller
                 ],
                 'vpn_auth' => [
                     'subscription_id' => $vpnSubscription->id,
-                    'vpn_username' => $vpnData['username'],
-                    'vpn_password' => $vpnData['password'],
+                    'vpn_username' => $vpnData['data']['username'],
+                    'vpn_password' => $vpnData['data']['password'],
                 ],
                 'response_code' => 200,
                 'response_message' => 'Subscription activated.',
