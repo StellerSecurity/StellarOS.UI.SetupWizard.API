@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6f911a15d1dbcb8702da1b44b364408f",
+    "content-hash": "b67283c845820a855ae8a9a275bb22b9",
     "packages": [
         {
             "name": "brick/math",
@@ -3394,6 +3394,141 @@
                 "source": "https://github.com/StellarSecurity-Packages/stellarsecurity-application-insights-laravel/tree/v1.0.7"
             },
             "time": "2025-12-15T16:52:45+00:00"
+        },
+        {
+            "name": "stellarsecurity/stellar-laravel-devices",
+            "version": "v1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/StellarSecurity-Packages/stellar-laravel-devices.git",
+                "reference": "eb4403af667d8c66efdbe9ceccfaafd7ec8a4965"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/StellarSecurity-Packages/stellar-laravel-devices/zipball/eb4403af667d8c66efdbe9ceccfaafd7ec8a4965",
+                "reference": "eb4403af667d8c66efdbe9ceccfaafd7ec8a4965",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "StellarDevice": "StellarSecurity\\DeviceApi\\Facades\\StellarDevice"
+                    },
+                    "providers": [
+                        "StellarSecurity\\DeviceApi\\StellarDeviceServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "StellarSecurity\\DeviceApi\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Stellar Devices API client for Laravel",
+            "support": {
+                "issues": "https://github.com/StellarSecurity-Packages/stellar-laravel-devices/issues",
+                "source": "https://github.com/StellarSecurity-Packages/stellar-laravel-devices/tree/v1.0.1"
+            },
+            "time": "2026-01-30T23:04:12+00:00"
+        },
+        {
+            "name": "stellarsecurity/stellarsecurity-vpn-laravel",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/StellarSecurity-Packages/stellarsecurity-vpn-laravel.git",
+                "reference": "e33f634b20021484c9bb8a9bd3a630d7c4cbd70f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/StellarSecurity-Packages/stellarsecurity-vpn-laravel/zipball/e33f634b20021484c9bb8a9bd3a630d7c4cbd70f",
+                "reference": "e33f634b20021484c9bb8a9bd3a630d7c4cbd70f",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "StellarSecurity\\LaravelVpn\\StellarVpnServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "StellarSecurity\\LaravelVpn\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "proprietary"
+            ],
+            "description": "Enterprise SDK for Stellar VPN integration.",
+            "support": {
+                "issues": "https://github.com/StellarSecurity-Packages/stellarsecurity-vpn-laravel/issues",
+                "source": "https://github.com/StellarSecurity-Packages/stellarsecurity-vpn-laravel/tree/v1.0.0"
+            },
+            "time": "2025-12-11T15:04:18+00:00"
+        },
+        {
+            "name": "stellarsecurity/subscription-laravel",
+            "version": "v1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/StellarSecurity-Packages/stellarsecurity-subscription-laravel.git",
+                "reference": "4951097437a306a97fda897e3ccb6c6549235872"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/StellarSecurity-Packages/stellarsecurity-subscription-laravel/zipball/4951097437a306a97fda897e3ccb6c6549235872",
+                "reference": "4951097437a306a97fda897e3ccb6c6549235872",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "StellarSubscription": "StellarSecurity\\SubscriptionLaravel\\Facades\\Subscription"
+                    },
+                    "providers": [
+                        "StellarSecurity\\SubscriptionLaravel\\Providers\\SubscriptionServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "StellarSecurity\\SubscriptionLaravel\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Stellar Security",
+                    "homepage": "https://stellarsecurity.com"
+                }
+            ],
+            "description": "Stellar Security Subscription client for PHP/Laravel – simple wrapper around the Stellar Subscription API.",
+            "support": {
+                "issues": "https://github.com/StellarSecurity-Packages/stellarsecurity-subscription-laravel/issues",
+                "source": "https://github.com/StellarSecurity-Packages/stellarsecurity-subscription-laravel/tree/v1.0.2"
+            },
+            "time": "2025-11-29T17:54:00+00:00"
         },
         {
             "name": "stellarsecurity/user-laravel",
@@ -8520,12 +8655,12 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": [],
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
         "php": "^8.2"
     },
-    "platform-dev": [],
-    "plugin-api-version": "2.2.0"
+    "platform-dev": {},
+    "plugin-api-version": "2.6.0"
 }

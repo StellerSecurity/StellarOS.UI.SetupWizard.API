@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\V1\ActivationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\V1\LoginController;
 
@@ -17,6 +18,14 @@ use App\Http\Controllers\V1\LoginController;
 */
 
 Route::prefix('v1')->group(function () {
+
+    Route::prefix('activationcontroller')
+        ->middleware('throttle:20,1')
+        ->group(function () {
+            // POST /api/v1/activationcontroller/activate
+            Route::post('/activate', [ActivationController::class, 'activate']);
+        });
+
 
     // Throttle all auth flows a bit to reduce brute force abuse
     Route::prefix('logincontroller')
