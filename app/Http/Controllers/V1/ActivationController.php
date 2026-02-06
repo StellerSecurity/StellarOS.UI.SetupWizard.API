@@ -7,6 +7,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use StellarSecurity\DeviceApi\DeviceService;
 use Throwable;
 use StellarSecurity\DeviceApi\Facades\StellarDevice;
 use StellarSecurity\LaravelVpn\Services\VpnServerClient;
@@ -18,7 +19,8 @@ class ActivationController extends Controller
 {
     public function __construct(
         private SubscriptionService $subscriptionService,
-        private VpnServerClient $vpnClient
+        private VpnServerClient $vpnClient,
+        private DeviceService $deviceService
     ) {}
 
     /**
@@ -58,13 +60,6 @@ class ActivationController extends Controller
 
             $subscriptionObj = $subscription->object();
 
-            // TODO: Add additional business rules if available in your subscription object:
-            // - ensure it is an OS subscription
-            // - ensure it is active and not expired/revoked
-            // Example (only if fields exist):
-            // if (($subscriptionObj->type ?? null) !== SubscriptionType::OS->value) { ... }
-            // if (($subscriptionObj->status ?? null) !== SubscriptionStatus::ACTIVE->value) { ... }
-
             if ($subscriptionObj->activated_at !== null) {
                 return response()->json([
                     'response_code' => 409,
@@ -96,7 +91,8 @@ class ActivationController extends Controller
                 'expires_at' => $expiresAt,
             ])->object();
 
-            $device = StellarDevice::add($vpnSubscription->id, StellarDevice::randomName(), true);
+
+            $device = $this->deviceService->add($subscriptionId, StellarDevice::randomName())->object();
 
             $vpnData = $this->vpnClient->issueCredentials($vpnSubscription->id, $device->id);
 
