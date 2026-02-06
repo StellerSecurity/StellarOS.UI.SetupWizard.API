@@ -94,7 +94,7 @@ class ActivationController extends Controller
 
             $device = $this->deviceService->add($subscriptionId, StellarDevice::randomName())->object();
 
-            $vpnData = $this->vpnClient->issueCredentials($vpnSubscription->id, $device->id);
+            $vpnData = $this->vpnClient->issueCredentials($provisionalUserId, $device->id);
 
             $subscriptionObj->activated_at = Carbon::now();
 
