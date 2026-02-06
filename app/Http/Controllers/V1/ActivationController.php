@@ -111,8 +111,7 @@ class ActivationController extends Controller
                     [
                         'product' => 'vpn',
                         'subscription_id' => $vpnSubscription->id,
-                        'expires_at' => $expiresAt->toIso8601String(),
-                        'device_id' => $device->id,
+                        'expires_at' => $expiresAt->toIso8601String()
                     ],
                 ],
                 'vpn_auth' => [
