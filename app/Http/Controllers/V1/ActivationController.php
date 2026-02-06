@@ -124,7 +124,7 @@ class ActivationController extends Controller
         } catch (Throwable $e) {
             return response()->json([
                 'response_code' => 500,
-                'response_message' => 'Activation failed. Please retry later.',
+                'response_message' => 'Activation failed. Please retry later.' . $e->getMessage(),
             ], 500);
         } finally {
             optional($lock)->release();
