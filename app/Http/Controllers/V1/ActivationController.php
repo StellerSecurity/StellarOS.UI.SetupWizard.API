@@ -105,13 +105,11 @@ class ActivationController extends Controller
                 'entitlements' => [
                     [
                         'product' => 'antivirus',
-                        'subscription_id' => $antivirusSubscription->id,
-                        'expires_at' => $expiresAt->toIso8601String(),
+                        'subscription_id' => $antivirusSubscription->id
                     ],
                     [
                         'product' => 'vpn',
-                        'subscription_id' => $vpnSubscription->id,
-                        'expires_at' => $expiresAt->toIso8601String()
+                        'subscription_id' => $vpnSubscription->id
                     ],
                 ],
                 'vpn_auth' => [
