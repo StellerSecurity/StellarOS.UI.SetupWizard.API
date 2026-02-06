@@ -129,6 +129,8 @@ class ActivationController extends Controller
                 'response_code' => 500,
                 'response_message' => 'Activation failed. Please retry later.',
             ], 500);
+        } finally {
+            optional($lock)->release();
         }
     }
 }
