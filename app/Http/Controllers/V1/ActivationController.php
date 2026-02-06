@@ -92,7 +92,7 @@ class ActivationController extends Controller
             ])->object();
 
 
-            $device = $this->deviceService->add($subscriptionId, StellarDevice::randomName())->object();
+            $device = $this->deviceService->add($vpnSubscription->id, StellarDevice::randomName())->object();
 
             $vpnData = $this->vpnClient->issueCredentials($provisionalUserId, $device->id);
 
