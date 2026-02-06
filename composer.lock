@@ -3355,16 +3355,16 @@
         },
         {
             "name": "stellarsecurity/application-insights-laravel",
-            "version": "1.0.7",
+            "version": "1.0.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/StellarSecurity-Packages/stellarsecurity-application-insights-laravel.git",
-                "reference": "fe1783caba847dd66854f5225c7cc8773fe2fbe0"
+                "reference": "236fb7b66fc5a8c4e97ff26b7a7e74be823f5fb9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/StellarSecurity-Packages/stellarsecurity-application-insights-laravel/zipball/fe1783caba847dd66854f5225c7cc8773fe2fbe0",
-                "reference": "fe1783caba847dd66854f5225c7cc8773fe2fbe0",
+                "url": "https://api.github.com/repos/StellarSecurity-Packages/stellarsecurity-application-insights-laravel/zipball/236fb7b66fc5a8c4e97ff26b7a7e74be823f5fb9",
+                "reference": "236fb7b66fc5a8c4e97ff26b7a7e74be823f5fb9",
                 "shasum": ""
             },
             "require": {
@@ -3391,9 +3391,9 @@
             "description": "Stellar Security - Application Insights style telemetry for Laravel (HTTP, DB, jobs, mail, dependencies).",
             "support": {
                 "issues": "https://github.com/StellarSecurity-Packages/stellarsecurity-application-insights-laravel/issues",
-                "source": "https://github.com/StellarSecurity-Packages/stellarsecurity-application-insights-laravel/tree/v1.0.7"
+                "source": "https://github.com/StellarSecurity-Packages/stellarsecurity-application-insights-laravel/tree/v1.0.8"
             },
-            "time": "2025-12-15T16:52:45+00:00"
+            "time": "2025-12-15T18:38:40+00:00"
         },
         {
             "name": "stellarsecurity/stellar-laravel-devices",
