@@ -75,7 +75,6 @@ class ActivationController extends Controller
         $vpnData = $this->vpnClient->issueCredentials($vpnSubscription->id, $device->id);
 
         return response()->json([
-            'temp_user_id' => $temp_user_id,
             'antivirus' => [
                 'subscription_id' => $antivirusSubscription->id,
             ],
