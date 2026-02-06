@@ -4,7 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Request;
+use Illuminate\Http\Request;
 use StellarSecurity\DeviceApi\Facades\StellarDevice;
 use StellarSecurity\LaravelVpn\Services\VpnServerClient;
 use StellarSecurity\SubscriptionLaravel\Enums\SubscriptionStatus;
