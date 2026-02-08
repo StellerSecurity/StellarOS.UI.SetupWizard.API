@@ -51,14 +51,14 @@ class ActivationController extends Controller
         try {
             $subscription = $this->subscriptionService->find($subscriptionId, 6);
 
-            if ($subscription === null) {
+            $subscriptionObj = $subscription->object();
+
+            if(!isset($subscriptionObj->activated_at)) {
                 return response()->json([
                     'response_code' => 404,
-                    'response_message' => 'Wrong subscription ID.',
+                    'response_message' => 'Subscription ID not found.',
                 ], 404);
             }
-
-            $subscriptionObj = $subscription->object();
 
             if ($subscriptionObj->activated_at !== null) {
                 return response()->json([
