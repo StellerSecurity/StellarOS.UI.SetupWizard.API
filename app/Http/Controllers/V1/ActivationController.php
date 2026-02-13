@@ -53,7 +53,7 @@ class ActivationController extends Controller
 
             $subscriptionObj = $subscription->object();
 
-            if(!isset($subscriptionObj->activated_at)) {
+            if(!isset($subscriptionObj->id)) {
                 return response()->json([
                     'response_code' => 404,
                     'response_message' => 'Subscription ID not found.',
