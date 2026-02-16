@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use StellarSecurity\SubscriptionLaravel\Enums\SubscriptionType;
+use StellarSecurity\SubscriptionLaravel\SubscriptionService;
 use StellarSecurity\UserApiLaravel\UserService;
 
 class LoginController extends Controller
@@ -13,7 +15,7 @@ class LoginController extends Controller
 
     private string $token = "StellarOS.UI.SetupWizard.API";
 
-    public function __construct(public UserService $userService)
+    public function __construct(public UserService $userService, public SubscriptionService $subscriptionService)
     {
 
     }
@@ -47,9 +49,36 @@ class LoginController extends Controller
 
     public function create(Request $request): JsonResponse
     {
+        $provisional_user_id = $request->input('provisional_user_id');
+
         $data = $request->all();
         $data['token'] = $this->token;
+
         $auth = $this->userService->create($data)->object();
+
+        if (!empty($auth?->user?->id) && $provisional_user_id !== null) {
+
+            // VPN subscriptions
+            $vpnSubscriptions = $this->subscriptionService
+                ->user($provisional_user_id, SubscriptionType::VPN->value)
+                ->object();
+
+            foreach ($vpnSubscriptions as $vpnSubscription) {
+                $vpnSubscription->user_id = $auth->user->id;
+                $this->subscriptionService->patch((array) $vpnSubscription);
+            }
+
+            // Antivirus subscriptions
+            $antivirusSubscriptions = $this->subscriptionService
+                ->user($provisional_user_id, SubscriptionType::ANTIVIRUS->value)
+                ->object();
+
+            foreach ($antivirusSubscriptions as $antivirusSubscription) {
+                $antivirusSubscription->user_id = $auth->user->id;
+                $this->subscriptionService->patch((array) $antivirusSubscription);
+            }
+        }
+
         return response()->json($auth);
     }
 
