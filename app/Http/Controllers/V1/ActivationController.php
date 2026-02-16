@@ -4,6 +4,7 @@ namespace App\Http\Controllers\V1;
 
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -27,7 +28,7 @@ class ActivationController extends Controller
      * Claim/activate an OS subscription and issue entitlements (VPN + Antivirus)
      * for a provisional user. Later, entitlements can be linked to a Stellar ID.
      */
-    public function activate(Request $request)
+    public function activate(Request $request): JsonResponse
     {
         $subscriptionId = (string) $request->input('subscription_id');
 
