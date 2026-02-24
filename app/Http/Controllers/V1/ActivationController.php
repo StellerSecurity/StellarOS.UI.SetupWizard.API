@@ -71,7 +71,7 @@ class ActivationController extends Controller
             // stored on the phone.
             // @TODO: Do a better solution in future.
             $provisionalUserId = '';
-            for ($i = 0; $i < 12; $i++) {
+            for ($i = 0; $i < 6; $i++) {
                 $provisionalUserId .= random_int(0, 9);
             }
 

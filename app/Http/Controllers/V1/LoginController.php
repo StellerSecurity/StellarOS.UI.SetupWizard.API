@@ -51,6 +51,7 @@ class LoginController extends Controller
     {
         $provisional_user_id = $request->input('provisional_user_id');
 
+
         $data = $request->all();
         $data['token'] = $this->token;
 
@@ -60,7 +61,7 @@ class LoginController extends Controller
 
             // VPN subscriptions
             $vpnSubscriptions = $this->subscriptionService
-                ->user($provisional_user_id, SubscriptionType::VPN->value)
+                ->findUserSubscriptions($provisional_user_id, SubscriptionType::VPN->value)
                 ->object();
 
             foreach ($vpnSubscriptions as $vpnSubscription) {
@@ -70,7 +71,7 @@ class LoginController extends Controller
 
             // Antivirus subscriptions
             $antivirusSubscriptions = $this->subscriptionService
-                ->user($provisional_user_id, SubscriptionType::ANTIVIRUS->value)
+                ->findUserSubscriptions($provisional_user_id, SubscriptionType::ANTIVIRUS->value)
                 ->object();
 
             foreach ($antivirusSubscriptions as $antivirusSubscription) {
