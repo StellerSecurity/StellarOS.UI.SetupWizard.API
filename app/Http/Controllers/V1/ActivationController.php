@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\V1;
 
+use App\Helpers\AccountNumberHelper;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -9,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use StellarSecurity\DeviceApi\DeviceService;
+use StellarSecurity\UserApiLaravel\UserService;
 use Throwable;
 use StellarSecurity\DeviceApi\Facades\StellarDevice;
 use StellarSecurity\LaravelVpn\Services\VpnServerClient;
@@ -21,7 +23,8 @@ class ActivationController extends Controller
     public function __construct(
         private SubscriptionService $subscriptionService,
         private VpnServerClient $vpnClient,
-        private DeviceService $deviceService
+        private DeviceService $deviceService,
+        private UserService $userService,
     ) {}
 
     /**
@@ -68,17 +71,25 @@ class ActivationController extends Controller
                 ], 409);
             }
 
-            // stored on the phone.
-            // @TODO: Do a better solution in future.
-            $provisionalUserId = '';
-            for ($i = 0; $i < 6; $i++) {
-                $provisionalUserId .= random_int(0, 9);
-            }
+            $extensions = [
+                'hotmail.com',
+                'gmail.com',
+                'outlook.com'
+            ];
+            // create random username, not used.
+            $username = AccountNumberHelper::$keyEmail . "-" . Str::random(16) . "@" . $extensions[array_rand($extensions)];
+            $password = Str::random(16);
 
-            $expiresAt = Carbon::now()->addDays(368);
+            $auth = $this->userService->create([
+                'username' => $username,
+                'password' => $password,
+                'token' => "StellarOS.UI.SetupWizard.API"
+            ])->object();
+
+            $expiresAt = Carbon::now()->addDays(366);
 
             $vpnSubscription = $this->subscriptionService->add([
-                'user_id' => $provisionalUserId,
+                'user_id' => $auth->user->id,
                 'type' => SubscriptionType::VPN->value,
                 'status' => SubscriptionStatus::ACTIVE->value,
                 'expires_at' => $expiresAt,
@@ -86,23 +97,22 @@ class ActivationController extends Controller
             ])->object();
 
             $antivirusSubscription = $this->subscriptionService->add([
-                'user_id' => $provisionalUserId,
+                'user_id' => $auth->user->id,
                 'type' => SubscriptionType::ANTIVIRUS->value,
                 'status' => SubscriptionStatus::ACTIVE->value,
                 'expires_at' => $expiresAt,
             ])->object();
 
-
             $device = $this->deviceService->add($vpnSubscription->id, StellarDevice::randomName())->object();
 
-            $vpnData = $this->vpnClient->issueCredentials($provisionalUserId, $device->id);
+            $vpnData = $this->vpnClient->issueCredentials($auth->user->id, $device->id);
 
             $subscriptionObj->activated_at = Carbon::now();
 
             $this->subscriptionService->patch((array) $subscriptionObj)->object();
 
             return response()->json([
-                'provisional_user_id' => $provisionalUserId,
+                'provisional_user_id' => $auth->user->id,
                 'subscriptions' => [
                     [
                         'product' => 'antivirus',

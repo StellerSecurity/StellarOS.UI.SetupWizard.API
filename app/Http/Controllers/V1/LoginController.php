@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\V1;
 
+use App\Helpers\AccountNumberHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,6 @@ use StellarSecurity\UserApiLaravel\UserService;
 class LoginController extends Controller
 {
 
-    private string $token = "StellarOS.UI.SetupWizard.API";
 
     public function __construct(public UserService $userService, public SubscriptionService $subscriptionService)
     {
@@ -33,8 +33,7 @@ class LoginController extends Controller
 
         $response = $this->userService->auth([
             'username' => $data['username'],
-            'password' => $data['password'],
-            'token'    => $this->token,
+            'password' => $data['password']
         ]);
 
         $body = $response->object();
@@ -51,34 +50,26 @@ class LoginController extends Controller
     {
         $provisional_user_id = $request->input('provisional_user_id');
 
+        if(empty($provisional_user_id)){
+            return response()->json(['response_code' => 400]);
+        }
+
+        $user = $this->userService->user($provisional_user_id)->object();
+
+        if(!isset($user->user->email)){
+            return response()->json(['response_code' => 400]);
+        }
+
+        $username = $user->user->email;
+
+        if (!str_contains($username, AccountNumberHelper::$keyEmail)) {
+            return response()->json(['response_code' => 400]);
+        }
 
         $data = $request->all();
-        $data['token'] = $this->token;
+        $data['id'] = $provisional_user_id;
 
-        $auth = $this->userService->create($data)->object();
-
-        if (!empty($auth?->user?->id) && $provisional_user_id !== null) {
-
-            // VPN subscriptions
-            $vpnSubscriptions = $this->subscriptionService
-                ->findUserSubscriptions($provisional_user_id, SubscriptionType::VPN->value)
-                ->object();
-
-            foreach ($vpnSubscriptions as $vpnSubscription) {
-                $vpnSubscription->user_id = $auth->user->id;
-                $this->subscriptionService->patch((array) $vpnSubscription);
-            }
-
-            // Antivirus subscriptions
-            $antivirusSubscriptions = $this->subscriptionService
-                ->findUserSubscriptions($provisional_user_id, SubscriptionType::ANTIVIRUS->value)
-                ->object();
-
-            foreach ($antivirusSubscriptions as $antivirusSubscription) {
-                $antivirusSubscription->user_id = $auth->user->id;
-                $this->subscriptionService->patch((array) $antivirusSubscription);
-            }
-        }
+        $auth = $this->userService->patch($data)->object();
 
         return response()->json($auth);
     }
