@@ -62,7 +62,7 @@ class LoginController extends Controller
             return response()->json(['response_code' => 400]);
         }
 
-        if(!str_contains($user->user->username, AccountNumberHelper::$keyEmail)) {
+        if(!str_contains($user->user->email, AccountNumberHelper::$keyEmail)) {
             return response()->json(['response_code' => 400]);
         }
 
