@@ -58,6 +58,10 @@ class LoginController extends Controller
 
         $user = $this->userService->user($provisional_user_id)->object();
 
+        if(!isset($user->user->id)) {
+            return response()->json(['response_code' => 400]);
+        }
+
         if(!str_contains($user->user->username, AccountNumberHelper::$keyEmail)) {
             return response()->json(['response_code' => 400]);
         }
