@@ -14,6 +14,7 @@ use StellarSecurity\UserApiLaravel\UserService;
 class LoginController extends Controller
 {
 
+    private string $token = "StellarOS.UI.SetupWizard.API";
 
     public function __construct(public UserService $userService, public SubscriptionService $subscriptionService)
     {
@@ -33,7 +34,8 @@ class LoginController extends Controller
 
         $response = $this->userService->auth([
             'username' => $data['username'],
-            'password' => $data['password']
+            'password' => $data['password'],
+            'token'    => $this->token,
         ]);
 
         $body = $response->object();
@@ -56,20 +58,37 @@ class LoginController extends Controller
 
         $user = $this->userService->user($provisional_user_id)->object();
 
-        if(!isset($user->user->email)){
-            return response()->json(['response_code' => 400]);
-        }
-
-        $username = $user->user->email;
-
-        if (!str_contains($username, AccountNumberHelper::$keyEmail)) {
+        if(!str_contains($user->user->username, AccountNumberHelper::$keyEmail)) {
             return response()->json(['response_code' => 400]);
         }
 
         $data = $request->all();
-        $data['id'] = $provisional_user_id;
+        $data['token'] = $this->token;
 
-        $auth = $this->userService->patch($data)->object();
+        $auth = $this->userService->create($data)->object();
+
+        if (!empty($auth?->user?->id)) {
+
+            // VPN subscriptions
+            $vpnSubscriptions = $this->subscriptionService
+                ->findUserSubscriptions($provisional_user_id, SubscriptionType::VPN->value)
+                ->object();
+
+            foreach ($vpnSubscriptions as $vpnSubscription) {
+                $vpnSubscription->user_id = $auth->user->id;
+                $this->subscriptionService->patch((array) $vpnSubscription);
+            }
+
+            // Antivirus subscriptions
+            $antivirusSubscriptions = $this->subscriptionService
+                ->findUserSubscriptions($provisional_user_id, SubscriptionType::ANTIVIRUS->value)
+                ->object();
+
+            foreach ($antivirusSubscriptions as $antivirusSubscription) {
+                $antivirusSubscription->user_id = $auth->user->id;
+                $this->subscriptionService->patch((array) $antivirusSubscription);
+            }
+        }
 
         return response()->json($auth);
     }
