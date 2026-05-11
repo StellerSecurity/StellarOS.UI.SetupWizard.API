@@ -87,7 +87,7 @@ class ActivationController extends Controller
             ])->object();
 
             $expiresAt = Carbon::parse($subscriptionObj->expires_at)
-                ->addDays(7)
+                ->addDays(4)
                 ->format('Y-m-d H:i:s');
 
             $vpnSubscription = $this->subscriptionService->add([
