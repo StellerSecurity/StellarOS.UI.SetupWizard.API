@@ -86,7 +86,7 @@ class ActivationController extends Controller
                 'token' => "StellarOS.UI.SetupWizard.API"
             ])->object();
 
-            $expiresAt = Carbon::now()->addDays(366);
+            $expiresAt = Carbon::now()->addDays(92);
 
             $vpnSubscription = $this->subscriptionService->add([
                 'user_id' => $auth->user->id,
