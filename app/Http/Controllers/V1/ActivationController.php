@@ -5,6 +5,7 @@ namespace App\Http\Controllers\V1;
 use App\Helpers\AccountNumberHelper;
 use App\Http\Controllers\Controller;
 use Carbon\Carbon;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -42,22 +43,19 @@ class ActivationController extends Controller
             ], 422);
         }
 
-        // Distributed lock to prevent double activation in concurrent requests.
-        $lock = Cache::lock("activation:{$subscriptionId}", 15);
-
-        if (! $lock->get()) {
-            return response()->json([
-                'response_code' => 409,
-                'response_message' => 'Activation already in progress. Please retry.',
-            ], 409);
-        }
+        // Keep one activation for a subscription ID in flight across all API instances.
+        // A duplicate request waits for the first request to finish, then re-checks
+        // activated_at and receives the normal "already activated" response.
+        $lock = Cache::lock("activation:{$subscriptionId}", 120);
 
         try {
+            $lock->block(30);
+
             $subscription = $this->subscriptionService->find($subscriptionId, 6);
 
             $subscriptionObj = $subscription->object();
 
-            if(!isset($subscriptionObj->id)) {
+            if (! isset($subscriptionObj->id)) {
                 return response()->json([
                     'response_code' => 404,
                     'response_message' => 'Subscription ID not found.',
@@ -76,14 +74,15 @@ class ActivationController extends Controller
                 'gmail.com',
                 'outlook.com'
             ];
-            // create random username, not used.
-            $username = AccountNumberHelper::$keyEmail . "-" . Str::random(16) . "@" . $extensions[array_rand($extensions)];
+
+            // Create random username, not used.
+            $username = AccountNumberHelper::$keyEmail . '-' . Str::random(16) . '@' . $extensions[array_rand($extensions)];
             $password = Str::random(16);
 
             $auth = $this->userService->create([
                 'username' => $username,
                 'password' => $password,
-                'token' => "StellarOS.UI.SetupWizard.API"
+                'token' => 'StellarOS.UI.SetupWizard.API'
             ])->object();
 
             $expiresAt = Carbon::parse($subscriptionObj->expires_at)
@@ -133,14 +132,18 @@ class ActivationController extends Controller
                 'response_code' => 200,
                 'response_message' => 'Subscription activated.',
             ], 200);
-
+        } catch (LockTimeoutException $e) {
+            return response()->json([
+                'response_code' => 409,
+                'response_message' => 'Activation already in progress. Please retry.',
+            ], 409);
         } catch (Throwable $e) {
             return response()->json([
                 'response_code' => 500,
                 'response_message' => 'Activation failed. Please retry later.',
             ], 500);
         } finally {
-            optional($lock)->release();
+            $lock->release();
         }
     }
 }
