@@ -108,11 +108,17 @@ class ActivationController extends Controller
 
             $vpnData = $this->vpnClient->issueCredentials($auth->user->id, $device->id);
 
+            $handoverToken = null;
+            if (config('factory_handover.enabled') && $request->boolean('supports_factory_vpn_handover')) {
+                $handoverToken = app(\App\Services\FactoryVpnHandover::class)->register(
+                    $subscriptionId, (string) $vpnSubscription->id);
+            }
             $subscriptionObj->activated_at = Carbon::now();
 
             $this->subscriptionService->patch((array) $subscriptionObj)->object();
 
             return response()->json([
+                'factory_vpn_handover_token' => $handoverToken,
                 'provisional_user_id' => $auth->user->id,
                 'subscriptions' => [
                     [
