@@ -48,3 +48,5 @@ Route::prefix('v1')->group(function () {
             Route::post('/verifypasswordcode', [LoginController::class, 'verifypasswordcode']);
         });
 });
+
+Route::post('v1/activationcontroller/customer-handover', \App\Http\Controllers\V1\FactoryVpnHandoverController::class)->middleware('throttle:20,1');
