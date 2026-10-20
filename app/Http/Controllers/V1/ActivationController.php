@@ -113,6 +113,7 @@ class ActivationController extends Controller
                 $handoverToken = app(\App\Services\FactoryVpnHandover::class)->register(
                     $subscriptionId, (string) $vpnSubscription->id);
             }
+            $claimToken = app(\App\Services\ProvisionalAccountClaim::class)->issue((string) $auth->user->id);
             $subscriptionObj->activated_at = Carbon::now();
 
             $this->subscriptionService->patch((array) $subscriptionObj)->object();
@@ -120,6 +121,7 @@ class ActivationController extends Controller
             return response()->json([
                 'factory_vpn_handover_token' => $handoverToken,
                 'provisional_user_id' => $auth->user->id,
+                'provisional_claim_token' => $claimToken,
                 'subscriptions' => [
                     [
                         'product' => 'antivirus',
