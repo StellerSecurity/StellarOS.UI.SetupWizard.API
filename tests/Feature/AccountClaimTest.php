@@ -5,7 +5,7 @@ use App\Services\ProvisionalAccountClaim;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-final class AccountClaimTest extends Tests\TestCase {
+final class AccountClaimTest extends \Tests\TestCase {
     private ProvisionalAccountClaim $claims;
     protected function setUp(): void {
         parent::setUp();
