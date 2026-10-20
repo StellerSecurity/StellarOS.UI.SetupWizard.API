@@ -36,6 +36,10 @@ final class ProvisionalAccountClaim
     public function authorize(string $userId,string $token,string $username): bool {
         return $this->call('authorize',['provisional_user_id'=>$userId,'token'=>$token,'username'=>$username],'authorized');
     }
+    public function legacyTransfer(string $id,string $target): void {
+        if (!$this->call('legacy-transfer',['provisional_user_id'=>$id,'target_user_id'=>$target],'completed'))
+            throw new \RuntimeException('Legacy transfer rejected');
+    }
     public function transfer(string $userId,string $token,string $username,string $targetId): void {
         if (!$this->call('transfer',['provisional_user_id'=>$userId,'token'=>$token,
             'username'=>$username,'target_user_id'=>$targetId],'completed')) throw new \RuntimeException('Transfer rejected');
