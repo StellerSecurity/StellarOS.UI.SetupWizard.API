@@ -103,6 +103,8 @@ class ActivationController extends Controller
                 'token' => 'StellarOS.UI.SetupWizard.API'
             ])->object();
 
+            $claimToken = $withProof ? app(\App\Services\ProvisionalAccountClaim::class)->issue((string) $auth->user->id) : null;
+
             $expiresAt = Carbon::parse($subscriptionObj->expires_at)
                 ->addDays(4)
                 ->format('Y-m-d H:i:s');
@@ -131,7 +133,6 @@ class ActivationController extends Controller
                 $handoverToken = app(\App\Services\FactoryVpnHandover::class)->register(
                     $subscriptionId, (string) $vpnSubscription->id);
             }
-            $claimToken = $withProof ? app(\App\Services\ProvisionalAccountClaim::class)->issue((string) $auth->user->id) : null;
             $subscriptionObj->activated_at = Carbon::now();
 
             $this->subscriptionService->patch((array) $subscriptionObj)->object();

@@ -37,32 +37,23 @@ class LegacyLoginController extends LoginController
             return response()->json(['response_code' => 400]);
         }
 
-        $data = $request->all();
-        $data['token'] = $this->token;
-
-        $auth = $this->userService->create($data)->object();
+        $data=$request->validate(['username'=>'required|email|max:254','password'=>'required|string|max:1024']);
+        $data['token']=$this->token;
+        try { $result=$this->destinationAccount($data); }
+        catch (\Throwable $e) { return response()->json(['response_code'=>503],503); }
+        if (!$this->upstreamSucceeded($result) || empty($result->object()?->user?->id)) {
+            return response()->json(['response_code'=>400],400);
+        }
+        $auth=$result->object();
 
         if (!empty($auth?->user?->id)) {
 
-            // VPN subscriptions
-            $vpnSubscriptions = $this->subscriptionService
-                ->findUserSubscriptions($provisional_user_id, SubscriptionType::VPN->value)
-                ->object();
-
-            foreach ($vpnSubscriptions as $vpnSubscription) {
-                $vpnSubscription->user_id = $auth->user->id;
-                $this->subscriptionService->patch((array) $vpnSubscription);
+            try {
+                app(\App\Services\ProvisionalAccountClaim::class)->legacyTransfer((string)$provisional_user_id,(string)$auth->user->id);
+            } catch (\Throwable $error) {
+                return response()->json(['response_code'=>503,'response_message'=>'Please retry later.'],503);
             }
 
-            // Antivirus subscriptions
-            $antivirusSubscriptions = $this->subscriptionService
-                ->findUserSubscriptions($provisional_user_id, SubscriptionType::ANTIVIRUS->value)
-                ->object();
-
-            foreach ($antivirusSubscriptions as $antivirusSubscription) {
-                $antivirusSubscription->user_id = $auth->user->id;
-                $this->subscriptionService->patch((array) $antivirusSubscription);
-            }
         }
 
         return response()->json($auth);
