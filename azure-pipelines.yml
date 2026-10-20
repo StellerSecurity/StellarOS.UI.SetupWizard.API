@@ -46,6 +46,10 @@ stages:
       workingDirectory: $(rootFolder)
       displayName: 'Composer install'
 
+    - script: vendor/bin/phpunit --filter AccountClaim
+      workingDirectory: $(rootFolder)
+      displayName: 'Verify legacy compatibility and ownership proofs'
+
     - task: ArchiveFiles@2
       displayName: 'Archive files'
       inputs:

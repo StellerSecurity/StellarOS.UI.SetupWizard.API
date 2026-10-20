@@ -50,51 +50,55 @@ class LoginController extends Controller
 
     public function create(Request $request): JsonResponse
     {
-        $provisional_user_id = $request->input('provisional_user_id');
-
-        if(empty($provisional_user_id)){
-            return response()->json(['response_code' => 400]);
-        }
-
-        $user = $this->userService->user($provisional_user_id)->object();
-
-        if(!isset($user->user->id)) {
-            return response()->json(['response_code' => 400]);
-        }
-
-        if(!str_contains($user->user->email, AccountNumberHelper::$keyEmail)) {
-            return response()->json(['response_code' => 400]);
-        }
-
-        $data = $request->all();
-        $data['token'] = $this->token;
-
-        $auth = $this->userService->create($data)->object();
-
-        if (!empty($auth?->user?->id)) {
-
-            // VPN subscriptions
-            $vpnSubscriptions = $this->subscriptionService
-                ->findUserSubscriptions($provisional_user_id, SubscriptionType::VPN->value)
-                ->object();
-
-            foreach ($vpnSubscriptions as $vpnSubscription) {
-                $vpnSubscription->user_id = $auth->user->id;
-                $this->subscriptionService->patch((array) $vpnSubscription);
+        $data = $request->validate([
+            'username' => ['required', 'email', 'max:254'],
+            'password' => ['required', 'string', 'min:8', 'max:1024'],
+            'provisional_user_id' => ['required', 'string', 'max:128'],
+            'provisional_claim_token' => ['required', 'regex:/\A[a-f0-9]{64}\z/'],
+        ]);
+        $id = $data['provisional_user_id'];
+        $claims = app(\App\Services\ProvisionalAccountClaim::class);
+        // No shared client header, user ID or caller-provided upstream token is proof.
+        try {
+            if (!$claims->authorize($id, $data['provisional_claim_token'], $data['username'])) {
+                return response()->json(['response_code' => 403, 'response_message' => 'Activation proof required.'], 403);
             }
-
-            // Antivirus subscriptions
-            $antivirusSubscriptions = $this->subscriptionService
-                ->findUserSubscriptions($provisional_user_id, SubscriptionType::ANTIVIRUS->value)
-                ->object();
-
-            foreach ($antivirusSubscriptions as $antivirusSubscription) {
-                $antivirusSubscription->user_id = $auth->user->id;
-                $this->subscriptionService->patch((array) $antivirusSubscription);
+            $userResponse = $this->userService->user($id);
+            $user = $userResponse->object();
+            if (!$this->upstreamSucceeded($userResponse) || !isset($user->user->id)
+                || (string) $user->user->id !== $id
+                || !str_starts_with($user->user->email ?? '', AccountNumberHelper::$keyEmail . '-')) {
+                return response()->json(['response_code' => 403], 403);
             }
+            $credentials = ['username' => $data['username'], 'password' => $data['password'], 'token' => $this->token];
+            $result = $this->userService->create($credentials);
+            // A previous attempt may have created the destination before a transfer
+            // failed. Authentication is mandatory before resuming that same account.
+            if (!$this->upstreamSucceeded($result) || empty($result->object()?->user?->id)) {
+                $result = $this->userService->auth($credentials);
+            }
+            $auth = $result->object();
+            if (!$this->upstreamSucceeded($result) || empty($auth?->user?->id)) {
+                return response()->json(['response_code' => 400, 'response_message' => 'Account creation or authentication failed.'], 400);
+            }
+            $claims->transfer($id, $data['provisional_claim_token'], $data['username'], (string) $auth->user->id);
+            return response()->json($auth);
+        } catch (\Throwable $error) {
+            // Never log request bodies, credentials or capabilities.
+            return response()->json(['response_code' => 503, 'response_message' => 'Please retry with the same account.'], 503);
         }
+    }
 
-        return response()->json($auth);
+    private function upstreamSucceeded(\Illuminate\Http\Client\Response $response): bool
+    {
+        if (!$response->successful()) return false;
+        $body = $response->object();
+        // Several Stellar services report application failures inside HTTP 200.
+        if (is_object($body) && isset($body->response_code)) {
+            return is_numeric($body->response_code)
+                && (int) $body->response_code >= 200 && (int) $body->response_code < 300;
+        }
+        return true;
     }
 
     public function sendresetpasswordlink(Request $request): JsonResponse

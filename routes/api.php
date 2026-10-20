@@ -36,7 +36,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/auth', [LoginController::class, 'auth'])->middleware(['wizard-client']);
 
             // POST /api/v1/logincontroller/create
-            Route::post('/create', [LoginController::class, 'create'])->middleware(['wizard-client']);
+            Route::post('/create', [\App\Http\Controllers\V1\LegacyLoginController::class, 'create'])->middleware(['wizard-client']);
 
             // POST /api/v1/logincontroller/sendresetpasswordlink
             Route::post('/sendresetpasswordlink', [LoginController::class, 'sendresetpasswordlink']);
@@ -50,3 +50,15 @@ Route::prefix('v1')->group(function () {
 });
 
 Route::post('v1/activationcontroller/customer-handover', \App\Http\Controllers\V1\FactoryVpnHandoverController::class)->middleware('throttle:20,1');
+
+// New clients explicitly opt into ownership proofs; v1 retains its released contract.
+Route::prefix('v2')->middleware('throttle:20,1')->group(function () {
+    Route::post('activationcontroller/activate', [ActivationController::class, 'activateWithProof']);
+    Route::prefix('logincontroller')->group(function () {
+        Route::post('create', [LoginController::class, 'create']);
+        Route::post('auth', [LoginController::class, 'auth']);
+        Route::post('sendresetpasswordlink', [LoginController::class, 'sendresetpasswordlink']);
+        Route::post('resetpasswordupdate', [LoginController::class, 'resetpasswordupdate']);
+        Route::post('verifypasswordcode', [LoginController::class, 'verifypasswordcode']);
+    });
+});
