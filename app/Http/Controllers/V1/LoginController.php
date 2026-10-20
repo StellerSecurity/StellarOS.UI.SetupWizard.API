@@ -71,12 +71,7 @@ class LoginController extends Controller
                 return response()->json(['response_code' => 403], 403);
             }
             $credentials = ['username' => $data['username'], 'password' => $data['password'], 'token' => $this->token];
-            $result = $this->userService->create($credentials);
-            // A previous attempt may have created the destination before a transfer
-            // failed. Authentication is mandatory before resuming that same account.
-            if (!$this->upstreamSucceeded($result) || empty($result->object()?->user?->id)) {
-                $result = $this->userService->auth($credentials);
-            }
+            $result = $this->destinationAccount($credentials);
             $auth = $result->object();
             if (!$this->upstreamSucceeded($result) || empty($auth?->user?->id)) {
                 return response()->json(['response_code' => 400, 'response_message' => 'Account creation or authentication failed.'], 400);
@@ -89,7 +84,16 @@ class LoginController extends Controller
         }
     }
 
-    private function upstreamSucceeded(\Illuminate\Http\Client\Response $response): bool
+    protected function destinationAccount(array $credentials): \Illuminate\Http\Client\Response
+    {
+        try { $result=$this->userService->create($credentials); }
+        catch (\Illuminate\Http\Client\RequestException $e) { $result=$e->response; }
+        if ($this->upstreamSucceeded($result) && !empty($result->object()?->user?->id)) return $result;
+        try { return $this->userService->auth($credentials); }
+        catch (\Illuminate\Http\Client\RequestException $e) { return $e->response; }
+    }
+
+    protected function upstreamSucceeded(\Illuminate\Http\Client\Response $response): bool
     {
         if (!$response->successful()) return false;
         $body = $response->object();
