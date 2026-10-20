@@ -34,6 +34,24 @@ class ActivationController extends Controller
      */
     public function activate(Request $request): JsonResponse
     {
+        return $this->activateInternal($request, false);
+    }
+
+    public function activateWithProof(Request $request): JsonResponse
+    {
+        // Check schema before any irreversible upstream entitlement creation.
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('provisional_account_claims')) {
+                return response()->json(['response_code' => 503], 503);
+            }
+        } catch (\Throwable $error) {
+            return response()->json(['response_code' => 503], 503);
+        }
+        return $this->activateInternal($request, true);
+    }
+
+    private function activateInternal(Request $request, bool $withProof): JsonResponse
+    {
         $subscriptionId = (string) $request->input('subscription_id');
 
         if ($subscriptionId === '') {
@@ -113,7 +131,7 @@ class ActivationController extends Controller
                 $handoverToken = app(\App\Services\FactoryVpnHandover::class)->register(
                     $subscriptionId, (string) $vpnSubscription->id);
             }
-            $claimToken = app(\App\Services\ProvisionalAccountClaim::class)->issue((string) $auth->user->id);
+            $claimToken = $withProof ? app(\App\Services\ProvisionalAccountClaim::class)->issue((string) $auth->user->id) : null;
             $subscriptionObj->activated_at = Carbon::now();
 
             $this->subscriptionService->patch((array) $subscriptionObj)->object();
@@ -121,7 +139,7 @@ class ActivationController extends Controller
             return response()->json([
                 'factory_vpn_handover_token' => $handoverToken,
                 'provisional_user_id' => $auth->user->id,
-                'provisional_claim_token' => $claimToken,
+                ...($withProof ? ['provisional_claim_token' => $claimToken] : []),
                 'subscriptions' => [
                     [
                         'product' => 'antivirus',

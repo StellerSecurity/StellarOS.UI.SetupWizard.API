@@ -76,4 +76,33 @@ final class AccountClaimHttpTest extends \Tests\TestCase
         $this->assertSame(503,$this->runClaim()->status());
         $this->assertSame([],$this->patches);
     }
+    private function legacyRequest(): \Illuminate\Testing\TestResponse {
+        config(['services.stellar_wizard.key'=>'compatibility-test-key']);
+        return $this->withHeader('X-Stellar-Wizard-Key','compatibility-test-key')->postJson('/api/v1/logincontroller/create', [
+            'username'=>'person@example.com', 'password'=>'test-password', 'provisional_user_id'=>'123',
+        ]);
+    }
+    public function test_released_client_can_transfer_old_activation_without_proof(): void {
+        \Illuminate\Support\Facades\DB::table('provisional_account_claims')->delete();
+        $this->legacyRequest()->assertOk()->assertJsonPath('response_code',200);
+        $this->assertCount(2,$this->patches);
+    }
+    public function test_v1_cannot_transfer_new_activation_even_after_proof_consumed(): void {
+        $this->legacyRequest()->assertForbidden();
+        \Illuminate\Support\Facades\DB::table('provisional_account_claims')->update(['consumed_at'=>now()]);
+        $this->legacyRequest()->assertForbidden();
+        Http::assertNothingSent();
+    }
+    public function test_v2_route_rejects_missing_proof_without_legacy_header(): void {
+        $this->postJson('/api/v2/logincontroller/create',[
+            'username'=>'person@example.com','password'=>'test-password','provisional_user_id'=>'123',
+        ])->assertStatus(422);
+        Http::assertNothingSent();
+    }
+    public function test_missing_schema_blocks_v2_activation_before_upstream_side_effects(): void {
+        config(['stellar_vpn.username'=>'test-only','stellar_vpn.password'=>'test-only']);
+        Schema::drop('provisional_account_claims');
+        $this->postJson('/api/v2/activationcontroller/activate',['subscription_id'=>'test'])->assertStatus(503);
+        Http::assertNothingSent();
+    }
 }
