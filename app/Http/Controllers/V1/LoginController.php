@@ -59,8 +59,6 @@ class LoginController extends Controller
         $id = $data['provisional_user_id'];
         $claims = app(\App\Services\ProvisionalAccountClaim::class);
         // No shared client header, user ID or caller-provided upstream token is proof.
-        $lock = \Illuminate\Support\Facades\Cache::lock('account-claim:'.hash('sha256', $id), 300);
-        if (!$lock->get()) return response()->json(['response_code' => 409], 409);
         try {
             if (!$claims->authorize($id, $data['provisional_claim_token'], $data['username'])) {
                 return response()->json(['response_code' => 403, 'response_message' => 'Activation proof required.'], 403);
@@ -83,32 +81,11 @@ class LoginController extends Controller
             if (!$this->upstreamSucceeded($result) || empty($auth?->user?->id)) {
                 return response()->json(['response_code' => 400, 'response_message' => 'Account creation or authentication failed.'], 400);
             }
-            if (!$claims->bindTarget($id, (string) $auth->user->id)) {
-                return response()->json(['response_code' => 403], 403);
-            }
-            foreach ([SubscriptionType::VPN->value, SubscriptionType::ANTIVIRUS->value] as $type) {
-                $response = $this->subscriptionService->findUserSubscriptions($id, $type);
-                if (!$this->upstreamSucceeded($response)) throw new \RuntimeException('Subscription lookup failed');
-                $subscriptions = $response->object();
-                if (!is_array($subscriptions)) throw new \RuntimeException('Unexpected subscription response');
-                foreach ($subscriptions as $subscription) {
-                    if (!is_object($subscription) || !isset($subscription->user_id)
-                        || (string) $subscription->user_id !== $id) {
-                        throw new \RuntimeException('Unexpected subscription owner');
-                    }
-                    $subscription->user_id = $auth->user->id;
-                    if (!$this->upstreamSucceeded($this->subscriptionService->patch((array) $subscription))) {
-                        throw new \RuntimeException('Subscription transfer failed');
-                    }
-                }
-            }
-            $claims->complete($id);
+            $claims->transfer($id, $data['provisional_claim_token'], $data['username'], (string) $auth->user->id);
             return response()->json($auth);
         } catch (\Throwable $error) {
             // Never log request bodies, credentials or capabilities.
             return response()->json(['response_code' => 503, 'response_message' => 'Please retry with the same account.'], 503);
-        } finally {
-            $lock->release();
         }
     }
 

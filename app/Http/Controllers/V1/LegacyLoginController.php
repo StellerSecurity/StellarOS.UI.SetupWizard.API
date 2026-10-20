@@ -21,8 +21,7 @@ class LegacyLoginController extends LoginController
         // A proof-protected activation must never be transferable through legacy v1.
         // Retain consumed proof rows so completion cannot re-enable a downgrade.
         try {
-            if (\Illuminate\Support\Facades\DB::table('provisional_account_claims')
-                ->where('provisional_user_id', (string) $provisional_user_id)->exists()) {
+            if (app(\App\Services\ProvisionalAccountClaim::class)->isProtected((string) $provisional_user_id)) {
                 return response()->json(['response_code' => 403, 'response_message' => 'Activation proof required.'], 403);
             }
         } catch (\Throwable $error) {

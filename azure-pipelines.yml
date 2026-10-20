@@ -83,4 +83,3 @@ stages:
               appName: $(webAppName)
               appType: webAppLinux
               package: $(Pipeline.Workspace)/drop/$(Build.BuildId).zip
-              startUpCommand: 'sh /home/site/wwwroot/deploy/startup.sh'

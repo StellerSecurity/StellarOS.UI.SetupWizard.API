@@ -39,9 +39,9 @@ class ActivationController extends Controller
 
     public function activateWithProof(Request $request): JsonResponse
     {
-        // Check schema before any irreversible upstream entitlement creation.
+        // Check the subscription service before creating upstream entitlements.
         try {
-            if (!\Illuminate\Support\Facades\Schema::hasTable('provisional_account_claims')) {
+            if (!app(\App\Services\ProvisionalAccountClaim::class)->ready()) {
                 return response()->json(['response_code' => 503], 503);
             }
         } catch (\Throwable $error) {

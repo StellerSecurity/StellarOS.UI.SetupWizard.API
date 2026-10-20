@@ -2,107 +2,81 @@
 namespace Tests\Feature;
 
 use App\Helpers\AccountNumberHelper;
-use App\Http\Controllers\V1\LoginController;
-use App\Services\ProvisionalAccountClaim;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Schema;
-use StellarSecurity\SubscriptionLaravel\SubscriptionService;
-use StellarSecurity\UserApiLaravel\UserService;
 
 final class AccountClaimHttpTest extends \Tests\TestCase
 {
-    private string $proof;
-    private array $patches = [];
-    private bool $failPatch = false;
-    private bool $wrongOwner = false;
-    private bool $existing = false;
-    private array $created = [];
+    private bool $protected = true;
+    private bool $down = false;
+    private bool $forbiddenStatus = false;
     protected function setUp(): void {
         parent::setUp();
-        (require database_path('migrations/2026_10_20_000001_create_provisional_account_claims.php'))->up();
-        config(['stellar-user.base_url'=>'https://users.invalid/api/', 'stellar-subscription.base_url'=>'https://subscriptions.invalid/api/']);
-        config(['stellar-user.username_env'=>'STELLAR_TEST_USER','stellar-user.password_env'=>'STELLAR_TEST_PASSWORD']);
-        \Illuminate\Support\Env::getRepository()->set('STELLAR_TEST_USER','test-only');
-        \Illuminate\Support\Env::getRepository()->set('STELLAR_TEST_PASSWORD','test-only');
-        $this->proof=app(ProvisionalAccountClaim::class)->issue('123');
+        // Deliberately unusable DB: the UI API must not open a database connection.
+        config(['database.default'=>'no-database', 'cache.default'=>'array',
+            'account_claims.base_url'=>'https://subscriptions.invalid/api/v1/',
+            'account_claims.username'=>'test','account_claims.password'=>'test',
+            'stellar-user.base_url'=>'https://users.invalid/api/',
+            'stellar-subscription.base_url'=>'https://subscriptions.invalid/api/',
+            'stellar-user.username_env'=>'TEST_USER','stellar-user.password_env'=>'TEST_PASS',
+            'stellar_vpn.username'=>'test','stellar_vpn.password'=>'test',
+            'services.stellar_wizard.key'=>'legacy-test']);
+        \Illuminate\Support\Env::getRepository()->set('TEST_USER','test');
+        \Illuminate\Support\Env::getRepository()->set('TEST_PASS','test');
         Http::preventStrayRequests();
-        Http::fake(function ($request) {
-            $url=parse_url($request->url(), PHP_URL_PATH);
-            if ($url==='/api/v1/usercontroller/user/123') return Http::response(['user'=>['id'=>123,'email'=>AccountNumberHelper::$keyEmail.'-test']]);
-            if ($url==='/api/v1/usercontroller/createuser') {
-                $this->created=$request->data();
-                return Http::response($this->existing?['response_code'=>409]:['response_code'=>200,'user'=>['id'=>456]]);
+        Http::fake(function($r) {
+            $path=parse_url($r->url(),PHP_URL_PATH);
+            if(str_contains($path,'/account-claims/')) {
+                if($this->down) return Http::response([],503);
+                return match(basename($path)) {
+                    'ready'=>Http::response(['ready'=>true]),
+                    'status'=>$this->forbiddenStatus ? Http::response([],403) : Http::response(['protected'=>$this->protected]),
+                    'authorize'=>Http::response(['authorized'=>true]),
+                    'transfer'=>Http::response(['completed'=>true]),
+                    default=>throw new \RuntimeException('Unexpected claim request'),
+                };
             }
-            if ($url==='/api/v1/usercontroller/login') return Http::response(['response_code'=>200,'user'=>['id'=>456]]);
-            if ($url==='/api/v1/subscriptioncontroller/user/subscriptions') return Http::response([['id'=>$request['type'],'user_id'=>$this->wrongOwner?999:123]]);
-            if ($url==='/api/v1/subscriptioncontroller/patch') {
-                $this->patches[]=$request->data();
-                return Http::response(['response_code'=>$this->failPatch?500:200]);
-            }
-            throw new \RuntimeException('Unexpected HTTP request in isolated test');
+            if($path==='/api/v1/usercontroller/user/123') return Http::response(['user'=>['id'=>123,'email'=>AccountNumberHelper::$keyEmail.'-test']]);
+            if($path==='/api/v1/usercontroller/createuser') return Http::response(['response_code'=>200,'user'=>['id'=>456]]);
+            if($path==='/api/v1/subscriptioncontroller/user/subscriptions') return Http::response([['id'=>'sub-'.$r['type'],'user_id'=>123]]);
+            if($path==='/api/v1/subscriptioncontroller/patch') return Http::response(['response_code'=>200]);
+            throw new \RuntimeException('Unexpected upstream request');
         });
     }
-    protected function tearDown(): void { Schema::dropIfExists('provisional_account_claims'); parent::tearDown(); }
-    private function runClaim(array $overrides=[]): \Illuminate\Http\JsonResponse {
-        $controller=new LoginController(new UserService(),new SubscriptionService());
-        return $controller->create(Request::create('/auth/create','POST',array_merge([
-            'username'=>'person@example.com','password'=>'test-password','provisional_user_id'=>'123',
-            'provisional_claim_token'=>$this->proof,'token'=>'untrusted-token','role'=>'admin',
-        ],$overrides)));
+    private function payload(): array {
+        return ['username'=>'person@example.com','password'=>'test-password','provisional_user_id'=>'123','provisional_claim_token'=>str_repeat('a',64)];
     }
-    public function test_real_services_transfer_once_without_forwarding_untrusted_fields(): void {
-        $this->assertSame(200,$this->runClaim()->status());
-        $this->assertCount(2,$this->patches);
-        foreach($this->patches as $patch) $this->assertSame(456,$patch['user_id']);
-        $this->assertSame(['username','password','token'],array_keys($this->created));
-        $this->assertNotSame('untrusted-token',$this->created['token']);
-        $this->assertSame(403,$this->runClaim()->status());
-        $this->assertCount(2,$this->patches);
+    public function test_v2_transfers_via_subscription_service_without_ui_database(): void {
+        $this->postJson('/api/v2/logincontroller/create',$this->payload())->assertOk();
+        Http::assertSent(fn($r)=>str_ends_with($r->url(),'/account-claims/transfer') && $r['target_user_id']==='456');
+        Http::assertNotSent(fn($r)=>str_ends_with($r->url(),'/subscriptioncontroller/patch'));
     }
-    public function test_wrong_proof_sends_no_http_request(): void {
-        $this->assertSame(403,$this->runClaim(['provisional_claim_token'=>str_repeat('0',64)])->status());
-        Http::assertNothingSent();
+    public function test_old_client_without_proof_keeps_legacy_flow(): void {
+        $this->protected=false;
+        $data=$this->payload(); unset($data['provisional_claim_token']);
+        $this->withHeader('X-Stellar-Wizard-Key','legacy-test')->postJson('/api/v1/logincontroller/create',$data)->assertOk();
+        Http::assertSent(fn($r)=>str_ends_with($r->url(),'/subscriptioncontroller/patch'));
     }
-    public function test_partial_failure_can_resume_only_same_destination(): void {
-        $this->failPatch=true;
-        $this->assertSame(503,$this->runClaim()->status());
-        $this->assertSame(403,$this->runClaim(['username'=>'other@example.com'])->status());
-        $this->failPatch=false; $this->existing=true;
-        $this->assertSame(200,$this->runClaim()->status());
+    public function test_v1_cannot_downgrade_new_activation(): void {
+        $this->withHeader('X-Stellar-Wizard-Key','legacy-test')->postJson('/api/v1/logincontroller/create',$this->payload())->assertForbidden();
+        Http::assertNotSent(fn($r)=>str_contains($r->url(),'usercontroller'));
     }
-    public function test_wrong_subscription_owner_is_never_patched(): void {
-        $this->wrongOwner=true;
-        $this->assertSame(503,$this->runClaim()->status());
-        $this->assertSame([],$this->patches);
+    public function test_service_failure_never_allows_legacy_transfer(): void {
+        $this->down=true;
+        $this->withHeader('X-Stellar-Wizard-Key','legacy-test')->postJson('/api/v1/logincontroller/create',$this->payload())->assertStatus(503);
+        Http::assertNotSent(fn($r)=>str_contains($r->url(),'usercontroller'));
     }
-    private function legacyRequest(): \Illuminate\Testing\TestResponse {
-        config(['services.stellar_wizard.key'=>'compatibility-test-key']);
-        return $this->withHeader('X-Stellar-Wizard-Key','compatibility-test-key')->postJson('/api/v1/logincontroller/create', [
-            'username'=>'person@example.com', 'password'=>'test-password', 'provisional_user_id'=>'123',
-        ]);
-    }
-    public function test_released_client_can_transfer_old_activation_without_proof(): void {
-        \Illuminate\Support\Facades\DB::table('provisional_account_claims')->delete();
-        $this->legacyRequest()->assertOk()->assertJsonPath('response_code',200);
-        $this->assertCount(2,$this->patches);
-    }
-    public function test_v1_cannot_transfer_new_activation_even_after_proof_consumed(): void {
-        $this->legacyRequest()->assertForbidden();
-        \Illuminate\Support\Facades\DB::table('provisional_account_claims')->update(['consumed_at'=>now()]);
-        $this->legacyRequest()->assertForbidden();
-        Http::assertNothingSent();
-    }
-    public function test_v2_route_rejects_missing_proof_without_legacy_header(): void {
-        $this->postJson('/api/v2/logincontroller/create',[
-            'username'=>'person@example.com','password'=>'test-password','provisional_user_id'=>'123',
-        ])->assertStatus(422);
-        Http::assertNothingSent();
-    }
-    public function test_missing_schema_blocks_v2_activation_before_upstream_side_effects(): void {
-        config(['stellar_vpn.username'=>'test-only','stellar_vpn.password'=>'test-only']);
-        Schema::drop('provisional_account_claims');
+    public function test_v2_activation_checks_upstream_before_creating_accounts(): void {
+        $this->down=true;
         $this->postJson('/api/v2/activationcontroller/activate',['subscription_id'=>'test'])->assertStatus(503);
+        Http::assertNotSent(fn($r)=>str_contains($r->url(),'usercontroller'));
+    }
+    public function test_v2_missing_proof_sends_nothing(): void {
+        $data=$this->payload();unset($data['provisional_claim_token']);
+        $this->postJson('/api/v2/logincontroller/create',$data)->assertStatus(422);
         Http::assertNothingSent();
+    }
+    public function test_forbidden_status_is_not_treated_as_unprotected(): void {
+        $this->forbiddenStatus=true;
+        $this->withHeader('X-Stellar-Wizard-Key','legacy-test')->postJson('/api/v1/logincontroller/create',$this->payload())->assertStatus(503);
     }
 }

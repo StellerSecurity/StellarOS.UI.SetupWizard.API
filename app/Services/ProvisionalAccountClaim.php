@@ -1,52 +1,43 @@
 <?php
 namespace App\Services;
 
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
-/** A public application identifier is never authorization to transfer entitlements. */
+/** Stateless adapter; ownership and replay state belong to the subscription service. */
 final class ProvisionalAccountClaim
 {
-    public function issue(string $userId): string
-    {
-        $token = bin2hex(random_bytes(32));
-        DB::table('provisional_account_claims')->insert([
-            'provisional_user_id' => $userId,
-            'token_hash' => hash('sha256', $token),
-            'expires_at' => now()->addYear(),
-        ]);
+    private function call(string $action, array $data, string $field): bool {
+        $url=config('account_claims.base_url');
+        if (!is_string($url) || !str_starts_with($url,'https://')
+            || !config('account_claims.username') || !config('account_claims.password')) {
+            throw new \RuntimeException('Claim service is not configured');
+        }
+        $response=Http::baseUrl(rtrim($url,'/').'/')->withBasicAuth(
+            config('account_claims.username'),config('account_claims.password'))
+            ->acceptJson()->connectTimeout(5)->timeout(20)->withoutRedirecting()
+            ->post('account-claims/'.$action,$data);
+        if ($response->status()===403 && $action==='authorize') return false;
+        $response->throw();
+        if (!is_bool($response->json($field))) throw new \RuntimeException('Invalid claim service response');
+        return $response->json($field);
+    }
+    public function ready(): bool { return $this->call('ready',[],'ready'); }
+    public function isProtected(string $id): bool {
+        // A forbidden response is an error, never evidence that a legacy transfer is safe.
+        if (!$this->ready()) throw new \RuntimeException('Claim service unavailable');
+        return $this->call('status',['provisional_user_id'=>$id],'protected');
+    }
+    public function issue(string $userId): string {
+        $token=bin2hex(random_bytes(32));
+        if (!$this->call('register',['provisional_user_id'=>$userId,'token'=>$token],'registered'))
+            throw new \RuntimeException('Claim registration failed');
         return $token;
     }
-
-    public function authorize(string $userId, string $token, string $username): bool
-    {
-        if (!preg_match('/\A[a-f0-9]{64}\z/', $token)) return false;
-        return DB::transaction(function () use ($userId, $token, $username) {
-            $row = DB::table('provisional_account_claims')->where('provisional_user_id', $userId)->lockForUpdate()->first();
-            if (!$row || $row->consumed_at !== null || now()->greaterThanOrEqualTo($row->expires_at)
-                || !hash_equals($row->token_hash, hash('sha256', $token))) return false;
-            if ($row->target_username !== null && $row->target_username !== $username) return false;
-            // Persist the destination before contacting other services. A partial failure
-            // can be retried, but must never redirect the remaining entitlements.
-            DB::table('provisional_account_claims')->where('provisional_user_id', $userId)
-                ->update(['target_username' => $username]);
-            return true;
-        });
+    public function authorize(string $userId,string $token,string $username): bool {
+        return $this->call('authorize',['provisional_user_id'=>$userId,'token'=>$token,'username'=>$username],'authorized');
     }
-
-    public function bindTarget(string $userId, string $targetId): bool
-    {
-        return DB::transaction(function () use ($userId, $targetId) {
-            $row = DB::table('provisional_account_claims')->where('provisional_user_id', $userId)->lockForUpdate()->first();
-            if (!$row || $row->consumed_at !== null || $row->target_username === null) return false;
-            if ($row->target_user_id !== null && $row->target_user_id !== $targetId) return false;
-            DB::table('provisional_account_claims')->where('provisional_user_id', $userId)->update(['target_user_id' => $targetId]);
-            return true;
-        });
-    }
-
-    public function complete(string $userId): void
-    {
-        DB::table('provisional_account_claims')->where('provisional_user_id', $userId)
-            ->whereNotNull('target_user_id')->update(['consumed_at' => now()]);
+    public function transfer(string $userId,string $token,string $username,string $targetId): void {
+        if (!$this->call('transfer',['provisional_user_id'=>$userId,'token'=>$token,
+            'username'=>$username,'target_user_id'=>$targetId],'completed')) throw new \RuntimeException('Transfer rejected');
     }
 }
