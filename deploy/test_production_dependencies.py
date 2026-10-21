@@ -17,6 +17,7 @@ class ProductionInventoryTests(unittest.TestCase):
         self.dev={'name':'laravel/pint','version':'1.0.0'}
         self.lock={'packages':[self.row],'packages-dev':[self.dev]}
         self.installed={'dev':False,'packages':[self.row]}
+        (self.root/'vendor/test/runtime').mkdir(parents=True)
         self.write()
 
     def write(self):
@@ -45,6 +46,38 @@ class ProductionInventoryTests(unittest.TestCase):
         self.assertEqual(guard.verify(self.root),1)
         (folder/'phpunit').write_text('dev proxy')
         with self.assertRaisesRegex(ValueError,'unexpected binary'):guard.verify(self.root)
+
+    def test_missing_runtime_directory_rejected(self):
+        (self.root/'vendor/test/runtime').rmdir()
+        with self.assertRaisesRegex(ValueError, 'production package directory'):guard.verify(self.root)
+
+    def test_unregistered_vendor_and_package_directories_rejected(self):
+        for relative in ('vendor/unknown/payload', 'vendor/test/extra', 'vendor/composer/extra'):
+            with self.subTest(relative=relative):
+                directory=self.root/relative;directory.mkdir(parents=True)
+                with self.assertRaises(ValueError):guard.verify(self.root)
+                directory.rmdir()
+                if relative.startswith('vendor/unknown/'):(self.root/'vendor/unknown').rmdir()
+
+    def test_symlinked_namespace_and_package_rejected(self):
+        package=self.root/'vendor/test/runtime';package.rmdir()
+        package.symlink_to(self.root/'vendor/composer',target_is_directory=True)
+        with self.assertRaises(ValueError):guard.verify(self.root)
+        package.unlink();namespace=self.root/'vendor/test';namespace.rmdir()
+        namespace.symlink_to(self.root/'vendor/composer',target_is_directory=True)
+        with self.assertRaises(ValueError):guard.verify(self.root)
+
+    def test_metapackage_has_no_directory(self):
+        self.row['type']='metapackage';self.row['bin']=[];self.write()
+        (self.root/'vendor/test/runtime').rmdir();(self.root/'vendor/test').rmdir()
+        self.assertEqual(guard.verify(self.root),1)
+
+    def test_composer_namespace_can_contain_real_packages(self):
+        self.row['name']='composer/runtime';self.write()
+        (self.root/'vendor/test/runtime').rename(self.root/'vendor/composer/runtime')
+        (self.root/'vendor/test').rmdir()
+        (self.root/'vendor/composer/autoload_real.php').write_text('<?php // generated')
+        self.assertEqual(guard.verify(self.root),1)
 
     def test_duplicate_inventory_rejected(self):
         self.installed['packages']=[self.row,self.row];self.write()

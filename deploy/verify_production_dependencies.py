@@ -38,6 +38,10 @@ def package_map(rows):
 
 
 def verify(root):
+    vendor = root / 'vendor'
+    for directory in (vendor, vendor / 'composer'):
+        if directory.is_symlink() or not directory.is_dir():
+            raise ValueError('invalid vendor directory')
     lock = read_json(root / 'composer.lock')
     installed = read_json(root / 'vendor/composer/installed.json')
     if not isinstance(lock, dict) or not isinstance(installed, dict) or installed.get('dev') is not False:
@@ -57,6 +61,37 @@ def verify(root):
         path = root / 'vendor' / name
         if path.exists() or path.is_symlink():
             raise ValueError('development package remains in the deployment directory')
+    # Metapackages have no files. Every other locked package must occupy its
+    # standard vendor/name directory; custom installer layouts need explicit
+    # support rather than an unchecked install-path from installed.json.
+    physical = {name for name, row in production.items()
+                if row.get('type') != 'metapackage'}
+    namespaces = {name.split('/')[0] for name in physical}
+    for name in physical:
+        parent = vendor / name.split('/')[0]
+        package = vendor / name
+        if parent.is_symlink() or not parent.is_dir() or package.is_symlink() or not package.is_dir():
+            raise ValueError('missing or linked production package directory')
+    for entry in vendor.iterdir():
+        if entry.name in ('composer', 'bin'):
+            if entry.is_symlink() or not entry.is_dir():
+                raise ValueError('invalid Composer directory')
+            continue
+        if entry.name == 'autoload.php':
+            if entry.is_symlink() or not entry.is_file():
+                raise ValueError('invalid Composer autoloader')
+            continue
+        if entry.name not in namespaces or entry.is_symlink() or not entry.is_dir():
+            raise ValueError('unregistered vendor entry')
+    for namespace in namespaces | {'composer'}:
+        parent = vendor / namespace
+        for entry in parent.iterdir():
+            if namespace == 'composer' and entry.is_file() and not entry.is_symlink():
+                # Composer's generated metadata shares this namespace with
+                # normal composer/* packages. Package directories still count.
+                continue
+            if namespace + '/' + entry.name not in physical or entry.is_symlink() or not entry.is_dir():
+                raise ValueError('unregistered package directory')
     allowed_bins = set()
     for row in production.values():
         bins = row.get('bin', [])
