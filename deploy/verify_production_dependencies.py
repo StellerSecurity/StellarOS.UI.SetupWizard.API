@@ -38,6 +38,11 @@ def package_map(rows):
 
 
 def verify(root):
+    # These PHP API deployments have no Node runtime dependency. ArchiveFiles
+    # packages the workspace, so stale frontend dependencies must fail closed.
+    node_modules = root / 'node_modules'
+    if node_modules.exists() or node_modules.is_symlink():
+        raise ValueError('frontend dependency directory remains in the deployment directory')
     vendor = root / 'vendor'
     for directory in (vendor, vendor / 'composer'):
         if directory.is_symlink() or not directory.is_dir():

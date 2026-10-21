@@ -24,6 +24,16 @@ class ProductionInventoryTests(unittest.TestCase):
         (self.root/'composer.lock').write_text(json.dumps(self.lock))
         (self.root/'vendor/composer/installed.json').write_text(json.dumps(self.installed))
 
+    def test_stale_frontend_dependencies_rejected(self):
+        (self.root/'node_modules/vite').mkdir(parents=True)
+        with self.assertRaisesRegex(ValueError, 'frontend dependency'):
+            guard.verify(self.root)
+
+    def test_dangling_frontend_dependency_link_rejected(self):
+        (self.root/'node_modules').symlink_to(self.root/'absent')
+        with self.assertRaisesRegex(ValueError, 'frontend dependency'):
+            guard.verify(self.root)
+
     def test_exact_production_install_passes(self): self.assertEqual(guard.verify(self.root),1)
 
     def test_development_flag_must_be_boolean_false(self):
