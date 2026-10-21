@@ -60,6 +60,7 @@ stages:
         composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
         git diff --exit-code -- composer.lock
         python3 deploy/verify_production_dependencies.py
+        composer audit --locked --no-dev --no-interaction
       workingDirectory: $(rootFolder)
       displayName: 'Install and verify production dependencies only'
       env:
