@@ -50,6 +50,22 @@ stages:
       workingDirectory: $(rootFolder)
       displayName: 'Verify legacy compatibility and ownership proofs'
 
+    - script: python3 -m unittest discover -s deploy -p 'test_production_dependencies.py'
+      workingDirectory: $(rootFolder)
+      displayName: 'Test production dependency verification'
+
+    # Tests above use development tools; never ship those tools in the API package.
+    - script: |
+        set -eu
+        composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+        git diff --exit-code -- composer.lock
+        python3 deploy/verify_production_dependencies.py
+        composer audit --locked --no-dev --no-interaction
+      workingDirectory: $(rootFolder)
+      displayName: 'Install and verify production dependencies only'
+      env:
+        APPINSIGHTS_ENABLED: 'false'
+
     - task: ArchiveFiles@2
       displayName: 'Archive files'
       inputs:
@@ -66,7 +82,8 @@ stages:
 - stage: Deploy
   displayName: 'Deploy Web App'
   dependsOn: Build
-  condition: succeeded()
+  # Pull requests validate changes; production deploys only from main.
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
   jobs:
   - deployment: DeploymentJob
     pool:
